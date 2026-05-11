@@ -4,59 +4,112 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 /**
- * 问题：对非负整数数组进行升序排序。
- * 方法：使用基数排序。
- * 解题思路：从个位开始，按当前数位进行稳定的计数排序，然后依次处理十位、百位等更高数位。
- * 低位排序结果会被稳定保留，高位处理完成后，整体数字顺序就是升序。
- * 时间复杂度：O(d(n+r))，d 为最大数字位数，r 为基数，十进制下 r=10。
- * 空间复杂度：O(n+r)，需要临时数组和计数数组。
+ * 基数排序（Radix Sort）
+ *
+ * 问题：对整数数组进行升序排序。
+ *
+ * 常见实现：
+ * 1. radixSort：支持所有 int 的 LSD 基数排序。本文件推荐使用该方法，main 也调用它。
+ *    先找最小值 min，把每个数映射成 key = num - min，这样 key 一定非负且顺序不变。
+ *    然后按 key 的个位、十位、百位等做稳定计数排序。
+ * 2. radixSortNonNegative：非负整数 LSD 基数排序。
+ *    只接受非负整数，代码更接近教科书写法。
+ *
+ * 推荐方法 radixSort 的核心思路：
+ * 1. 对每个原始值 nums[i] 计算非负 long key：nums[i] - min。
+ * 2. key 的大小顺序和原始值完全一致。
+ * 3. 对 key 做按位稳定计数排序，同时同步移动原始 nums。
+ * 4. 最高位处理完后，nums 就按原始值升序排列。
+ *
+ * 时间复杂度：O(d * (n + r))，d 是最大 key 的位数，十进制 r = 10。
+ * 空间复杂度：O(n + r)。
+ * 稳定性：稳定。
  */
 public class RadixSort {
     private static final int RADIX = 10;
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("请输入非负整数数组长度：");
-        int n = scanner.nextInt();
-        int[] nums = new int[n];
-        System.out.println("请输入非负整数数组元素：");
-        for (int i = 0; i < n; i++) {
+        System.out.println("请输入数组长度：");
+        int length = scanner.nextInt();
+        int[] nums = new int[length];
+
+        System.out.println("请依次输入数组元素：");
+        for (int i = 0; i < nums.length; i++) {
             nums[i] = scanner.nextInt();
-            if (nums[i] < 0) {
-                throw new IllegalArgumentException("基数排序示例只支持非负整数");
-            }
         }
+
         radixSort(nums);
         System.out.println("基数排序结果为：" + Arrays.toString(nums));
     }
 
     public static void radixSort(int[] nums) {
-        if (nums.length == 0) {
+        if (nums == null || nums.length < 2) {
             return;
         }
+
+        int min = nums[0];
         int max = nums[0];
         for (int num : nums) {
+            min = Math.min(min, num);
             max = Math.max(max, num);
         }
-        for (int exp = 1; max / exp > 0; exp *= RADIX) {
-            countingSortByDigit(nums, exp);
+
+        long maxKey = (long) max - min;
+        long[] keys = new long[nums.length];
+        for (int i = 0; i < nums.length; i++) {
+            keys[i] = (long) nums[i] - min;
         }
+
+        radixSortByKeys(nums, keys, maxKey);
     }
 
-    private static void countingSortByDigit(int[] nums, int exp) {
-        int[] output = new int[nums.length];
-        int[] count = new int[RADIX];
+    public static void radixSortNonNegative(int[] nums) {
+        if (nums == null || nums.length == 0) {
+            return;
+        }
+
+        int max = nums[0];
         for (int num : nums) {
-            count[(num / exp) % RADIX]++;
+            if (num < 0) {
+                throw new IllegalArgumentException("该方法只支持非负整数");
+            }
+            max = Math.max(max, num);
         }
-        for (int i = 1; i < RADIX; i++) {
-            count[i] += count[i - 1];
+        if (nums.length < 2) {
+            return;
         }
-        for (int i = nums.length - 1; i >= 0; i--) {
-            int digit = (nums[i] / exp) % RADIX;
-            output[count[digit] - 1] = nums[i];
-            count[digit]--;
+
+        long[] keys = new long[nums.length];
+        for (int i = 0; i < nums.length; i++) {
+            keys[i] = nums[i];
         }
-        System.arraycopy(output, 0, nums, 0, nums.length);
+
+        radixSortByKeys(nums, keys, max);
+    }
+
+    private static void radixSortByKeys(int[] nums, long[] keys, long maxKey) {
+        int[] outputNums = new int[nums.length];
+        long[] outputKeys = new long[keys.length];
+
+        for (long exp = 1; maxKey / exp > 0; exp *= RADIX) {
+            int[] count = new int[RADIX];
+
+            for (long key : keys) {
+                count[(int) ((key / exp) % RADIX)]++;
+            }
+            for (int i = 1; i < RADIX; i++) {
+                count[i] += count[i - 1];
+            }
+            for (int i = nums.length - 1; i >= 0; i--) {
+                int digit = (int) ((keys[i] / exp) % RADIX);
+                int outputIndex = --count[digit];
+                outputNums[outputIndex] = nums[i];
+                outputKeys[outputIndex] = keys[i];
+            }
+
+            System.arraycopy(outputNums, 0, nums, 0, nums.length);
+            System.arraycopy(outputKeys, 0, keys, 0, keys.length);
+        }
     }
 }
