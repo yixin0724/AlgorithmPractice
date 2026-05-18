@@ -1,52 +1,86 @@
 package com.dp;
 
 import java.util.Scanner;
+
 /**
- * 问题：数字三角形最大路径和。
- * 方法：使用动态规划自底向上计算最大路径和，并用一维路径数组辅助输出路径。
- * 解题思路：先把最后一层作为初始状态，再从倒数第二层向上更新 dp[i][j]=arr[i][j]+max(dp[i+1][j],dp[i+1][j+1])。
- * 每处理一层时记录下一层最大值所在列，最后根据记录输出路径上的数字。
- * 时间复杂度：O(n^2)，n 为三角形层数。
- * 空间复杂度：O(n^2)，当前实现仍使用二维 dp 表和原始数组。
+ * LeetCode Hot 100 - 120. 三角形最小路径和（最大路径优化版）(Triangle - Max Path Optimized)
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 人为思考过程：
+ * ═══════════════════════════════════════════════════════════
+ * 1. 同样是数字三角形问题，目标是从顶层走到底层，每一步只能向下或向右下走，求路径和的最大值。
+ * 2. 在之前的版本中，我们用了一个 n*n 的二维 path 表来记录每一步的决策方向，虽然直观但
+ *    占用了不少空间。
+ * 3. 观察后可以发现：实际上我们只需要在每一层确定该层走哪一列即可。路径一旦确定，从顶层
+ *    到底层每一层的列号就唯一确定了。
+ * 4. 因此可以用一个长度为 n 的一维数组 path[i] 来记录第 i 层的列号，节省了 O(n^2) 的空间。
+ * 5. 核心填表逻辑不变：从底层初始化 dp(即 maxAdd) 最后一行为数塔底层的值，然后从倒数第二层
+ *    向上计算 dp[i][j] = arr[i][j] + max(dp[i+1][j], dp[i+1][j+1])。
+ * 6. 在每层 dp 填完后，找出该层底部所有可能路径中的最大值，记录其列号到 path 中。最后根据
+ *    path 输出每层的具体数字。
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 具体措施（算法步骤）：
+ * ═══════════════════════════════════════════════════════════
+ * 1. 读入层数 len，按上三角形输入数塔数据 arr[len][len]。
+ * 2. 初始化 dp[len][len]，dp 最后一行为 arr 最后一行的值。
+ * 3. 从第 len-2 层到第 0 层，对每个位置 (i,j)：
+ *    dp[i][j] = arr[i][j] + max(dp[i+1][j], dp[i+1][j+1])。
+ * 4. 在处理完每一层后，扫描下层（i+1 层）找出最大 dp 值所在的列号，存入一维路径数组 path[i+1]。
+ * 5. 输出 dp[0][0] 为最大路径和。
+ * 6. 根据 path 数组逐层输出路径上的数字。
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 复杂度分析：
+ * ═══════════════════════════════════════════════════════════
+ * 时间复杂度：O(n^2)
+ *   - 每层填表需要遍历当前层所有元素，总共约 n(n+1)/2 次操作；路径扫描每层额外 O(n)，总体
+ *     仍是 O(n^2)。
+ * 空间复杂度：O(n^2)
+ *   - dp 和 arr 二维数组各占 n*n。path 使用一维数组 O(n)，相比原版节省了一个二维 path 表。
  */
+
 public class NumberTriangleMaxPathOptimizedDp {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         int len = sc.nextInt();
-        int[][] dp = new int[len][len];
-        int[][] arr = new int[len][len];
-        int[] path = new int[len];
-        //自顶向下输入
-        for(int i=0;i<len;i++) {
-            for(int j=0;j<=i;j++) {
+        int[][] dp = new int[len][len];         // dp[i][j] 表示从 (i,j) 出发到底层的最大路径和
+        int[][] arr = new int[len][len];        // 存储数塔的原始数据
+        int[] path = new int[len];              // 一维 path：path[i] 记录第 i 层选择的列号
+
+        // 自顶向下读入数塔数据
+        for (int i = 0; i < len; i++) {
+            for (int j = 0; j <= i; j++) {
                 arr[i][j] = sc.nextInt();
             }
         }
-        //dp数组赋值
-        for(int i=0;i<len;i++) {
-            dp[len-1][i] = arr[len-1][i];
+
+        // 初始化 dp 数组的最后一行为数塔最后一行（自底向上的起点）
+        for (int i = 0; i < len; i++) {
+            dp[len - 1][i] = arr[len - 1][i];
         }
-        //求最大路径和and最大路径
-        for(int i=len-2;i>=0;i--) {
-            for(int j=0;j<=i;j++) {
-                dp[i][j] = arr[i][j]+Math.max(dp[i+1][j],dp[i+1][j+1]);
+
+        // 自底向上计算最大路径和，并记录每层的路径选择
+        for (int i = len - 2; i >= 0; i--) {
+            // 填表：计算第 i 层每个位置的最优值
+            for (int j = 0; j <= i; j++) {
+                dp[i][j] = arr[i][j] + Math.max(dp[i + 1][j], dp[i + 1][j + 1]);
             }
-            //求当前层的路径
+            // 确定第 i+1 层的最佳路径列号：扫描 i+1 层找出最大 dp 值的位置
             int max = 0;
-            for(int j=0;j<=i+1;j++) {	//0到len-1层 所以是i+1
-                if(dp[i+1][j]>max) {	//当前层的最大值就是需要走的路径
-                    max=dp[i+1][j];
-                    path[i+1]=j;	//记录路径坐标
+            for (int j = 0; j <= i + 1; j++) {
+                if (dp[i + 1][j] > max) {
+                    max = dp[i + 1][j];
+                    path[i + 1] = j;            // 记录该层最佳列号
                 }
             }
         }
-        System.out.println("最大路径和："+dp[0][0]);
-        /*for(int i=0;i<len;i++) {	//输出路径的坐标
-        	System.out.println(i+" "+path[i]);
-        }*/
-        //输出路径上的值
-        for(int i=0;i<len;i++) {
-            System.out.println("第"+i+"层:"+arr[i][path[i]]);
+
+        System.out.println("最大路径和：" + dp[0][0]);
+
+        // 根据 path 数组输出每一层路径上的数字
+        for (int i = 0; i < len; i++) {
+            System.out.println("第" + i + "层:" + arr[i][path[i]]);
         }
     }
 }

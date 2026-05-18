@@ -1,27 +1,49 @@
 package com.greedy;
 
-/**
- * 1 问题描述
- * 何为Kruskal算法？
- * 该算法功能：求取加权连通图的最小生成树。假设加权连通图有n个顶点，那么其最小生成树有且仅有n - 1条边。
- * 该算法核心思想：从给定加权连通图中，选择当前未被选择的，不能形成回路且权值最小的边，加入到当前正在构造的最小生成树中。
- * Kruskal算法的思想比Prin好理解一些。先把边按照权值进行排序，用贪心的思想优先选取权值较小的边，并依次连接，
- * 若出现环则跳过此边（用并查集来判断是否存在环）继续搜，直到已经使用的边的数量比总点数少一即可。
- * 证明：刚刚有提到：如果某个连通图属于最小生成树，那么所有从外部连接到该连通图的边中的一条最短的边必然属于最小生成树。
- * 所以不难发现，当最小生成树被拆分成彼此独立的若干个连通分量的时候，所有能够连接任意两个连通分量的边中的一条最短边必然属于最小生成树
- */
-
 import java.util.ArrayList;
 import java.util.Scanner;
 
-
 /**
- * 问题：求加权连通无向图的最小生成树。
- * 方法：使用 Kruskal 贪心算法，按边权从小到大选择，并用并查集避免成环。
- * 解题思路：先将所有边按权值从小到大排序，然后依次尝试加入当前最短边。
- * 如果边的两个端点已经属于同一个连通分量，加入后会成环，需要跳过；否则合并两个分量并把该边加入结果。
- * 时间复杂度：O(ElogE)，E 为边数，主要来自边排序。
- * 空间复杂度：O(V+E)，V 为顶点数，需要并查集数组、边数组和结果边集合。
+ * Kruskal 最小生成树（Kruskal's Minimum Spanning Tree）
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 人为思考过程：
+ * ═══════════════════════════════════════════════════════════
+ * 1. 问题本质：给定一个加权连通无向图，求一棵生成树使得所有边权值之和最小。
+ *    生成树必须包含所有 n 个顶点，且有且仅有 n-1 条边，且不能有环。
+ * 2. 直觉告诉我们：要权值最小，那应该优先选最短的边。从全集出发，按边权
+ *    从小到大依次考虑每条边 —— 如果加入后不形成环，就把它收进生成树。
+ * 3. 怎么判断是否成环？关键观察：如果一条边的两个端点当前已经连通（即在
+ *    同一个连通分量中），再加入这条边一定会形成环。反之则安全。
+ * 4. 这就引出了并查集（Union-Find）数据结构：它能快速判断两个顶点是否
+ *    属于同一连通分量，并且能快速合并两个分量。
+ * 5. 算法就是：先对边按权值排序，然后用并查集逐边判断，选够 n-1 条边即止。
+ *    正确性由 MST 的 cut property 保证：任意连通分量的最小出边必然属于 MST。
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 具体措施（算法步骤）：
+ * ═══════════════════════════════════════════════════════════
+ * 1. 将所有边按权值从小到大排序（当前实现使用归并排序）。
+ * 2. 初始化并查集：每个顶点自成一个连通分量（id[i] = -1）。
+ * 3. 遍历排序后的每条边 (a, b, value)：
+ *    a. 用并查集 find 操作查询 a 和 b 的根节点。
+ *    b. 若根节点不同（不在同一连通分量），则将该边加入 MST，
+ *       并通过 union 操作合并两个连通分量，已选边数 count++。
+ *    c. 若根节点相同，则跳过（否则会成环）。
+ *    d. 当 count == n-1 时，MST 构造完成，提前结束。
+ * 4. 返回结果边集合。
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 复杂度分析：
+ * ═══════════════════════════════════════════════════════════
+ * 时间复杂度：O(E log E)
+ *   - 边排序：归并排序 O(E log E)，E 为边数。
+ *   - 并查集操作：find 使用了路径压缩，union 使用了按大小合并，
+ *     均摊复杂度接近 O(alpha(V)) 即近乎常数，遍历 E 条边为 O(E)。
+ * 空间复杂度：O(V + E)
+ *   - 并查集 id 数组：O(V)，V 为顶点数。
+ *   - 边数组 A：O(E)。
+ *   - 结果边集合 list：O(V)（最多 V-1 条边）。
  */
 public class KruskalMinimumSpanningTree {
     //内部类，其对象表示连通图中一条边
@@ -79,11 +101,12 @@ public class KruskalMinimumSpanningTree {
         while (j < rightA.length) A[len++] = rightA[j++];
     }
 
-    //获取节点a的根节点编号
+    //获取节点a的根节点编号（带路径压缩）
     public int find(int[] id, int a) {
         int i, root, k;
         root = a;
         while (id[root] >= 0) root = id[root];  //此处，若id[root] >= 0，说明此时的a不是根节点，因为唯有根节点的值小于0
+        // 路径压缩：将沿途所有节点直接挂在 root 下
         k = a;
         while (k != root) {  //将a节点所在树的所有节点，都变成root的直接子节点
             i = id[k];
@@ -98,6 +121,7 @@ public class KruskalMinimumSpanningTree {
         int ida = find(id, a);   //得到顶点a的根节点
         int idb = find(id, b);   //得到顶点b的根节点
         int num = id[ida] + id[idb];  //由于根节点值必定小于0，此处num值必定小于零
+        // 按大小合并：小树合并到大树上
         if (id[ida] < id[idb]) {
             id[idb] = ida;    //将顶点b作为顶点a根节点的直接子节点
             id[ida] = num;   //更新根节点的id值
@@ -111,15 +135,18 @@ public class KruskalMinimumSpanningTree {
     public ArrayList<edge> getMinSpanTree(int n, edge[] A) {
         ArrayList<edge> list = new ArrayList<edge>();
         int[] id = new int[n];
+        // 初始化并查集，每个顶点自成一个集合
         for (int i = 0; i < n; i++)
             id[i] = -1;        //初始化id(x)，令所有顶点的id值为-1，即表示为根节点
         edgeSort(A);   //使用合并排序，对于图中所有边权值进行从小到大排序
         int count = 0;
+        // 按边权从小到大遍历每条边
         for (int i = 0; i < A.length; i++) {
             int a = A[i].a;
             int b = A[i].b;
             int ida = find(id, a - 1);
             int idb = find(id, b - 1);
+            // 两端点不在同一连通分量，加入该边不会成环
             if (ida != idb) {
                 list.add(A[i]);
                 count++;
@@ -144,12 +171,14 @@ public class KruskalMinimumSpanningTree {
         int p = in.nextInt();
         edge[] A = new edge[p];
         System.out.println("请依次输入具体边对于的顶点和权值：");
+        // 读入所有边
         for (int i = 0; i < p; i++) {
             int a = in.nextInt();
             int b = in.nextInt();
             int value = in.nextInt();
             A[i] = test.new edge(a, b, value);
         }
+        // 执行 Kruskal 算法
         ArrayList<edge> list = test.getMinSpanTree(n, A);
         System.out.println("使用Kruskal算法得到的最小生成树具体边和权值分别为：");
         for (int i = 0; i < list.size(); i++) {
@@ -157,4 +186,3 @@ public class KruskalMinimumSpanningTree {
         }
     }
 }
-

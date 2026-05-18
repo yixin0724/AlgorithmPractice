@@ -1,23 +1,50 @@
 package com.dp;
-/*
-    最短路径问题(有向图，动态规划)
-    输入：一个n阶矩阵来表示有向图的顶点，边数和权值。
-    输出：将源点到最终点的路径和路径大小输出。
-    1.首先初始化一个n阶矩阵，将他们的值都初始化为正无穷，然后利用循环依次将顶点之间的关系和权值赋值进去
-    2.开始设计算法，可以用动态规划法，首先定义两个一维数组，一个path[]用来存路径，表示从哪个顶点到索引位置最短，一个minpath[]表示从源点到下标的距离
-    3.最后输出结果，用回溯方法输出最短所要经过的路径,即：while(path[i]>=0){sout path[i];i=path[i];}    输出完一个后，继续输出下一个path[path[i]]
+
+/**
+ * 有向无环图最短路径问题（经典动态规划）
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 人为思考过程：
+ * ═══════════════════════════════════════════════════════════
+ * 1. 首先明确问题：给定一个有向无环图（DAG），求从源点（顶点 0）到终点（顶点 len-1）的最短
+ *    路径长度和具体路径。
+ * 2. DAG 的一个重要性质是顶点可以按拓扑顺序排列，这意味着当我们计算到某个顶点的最短路径时，
+ *    它的所有前驱顶点的最短路径都已经计算完毕。
+ * 3. 这正好满足动态规划的"无后效性"：当前顶点的最短路径只取决于前驱顶点，而不会被后续计算
+ *    影响。
+ * 4. 用邻接矩阵存储图的边权：arr[i][j] 表示从顶点 i 到顶点 j 的权值。不存在的边初始化为一个
+ *    很大的数（无穷大）。
+ * 5. 设 minpath[j] 表示从源点到顶点 j 的最短距离。初始时 minpath[0] = 0，其他为无穷大。
+ * 6. 按拓扑序依次计算每个顶点 j（从 1 到 len-1）：枚举所有可能的前驱 i（i < j），尝试用
+ *    minpath[i] + arr[i][j] 更新 minpath[j]。如果这个值更小，就更新最短距离并记录前驱。
+ * 7. 最后根据前驱数组 path 回溯输出完整路径。
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 具体措施（算法步骤）：
+ * ═══════════════════════════════════════════════════════════
+ * 1. 读入顶点数 len 和边数 side。
+ * 2. 初始化 len*len 的邻接矩阵 arr，所有元素设为无穷大（9999），表示无边。
+ * 3. 依次读入每条边的起点 i、终点 j 和权值 weight，赋值到 arr[i][j]。
+ * 4. 调用 shortPath 方法进行计算：
+ *    a. 初始化 path 数组（前驱记录，初始 -1）和 minpath 数组（最短距离，初始无穷大），
+ *       minpath[0] = 0。
+ *    b. 外层循环按拓扑序遍历顶点 j（1 到 len-1）；内层循环枚举所有前驱 i（0 到 j-1），
+ *       检查和更新最短距离。
+ *    c. 用 list 回溯收集路径：从终点开始，不断沿着 path 数组反向追踪到源点，再倒序输出。
+ * 5. 输出最短路径和路径串。
+ *
+ * ═══════════════════════════════════════════════════════════
+ * 复杂度分析：
+ * ═══════════════════════════════════════════════════════════
+ * 时间复杂度：O(V^2)
+ *   - 外层循环遍历 V 个顶点，内层循环最多检查 j 个前驱，总操作数约为 V*(V-1)/2 = O(V^2)。
+ * 空间复杂度：O(V^2)
+ *   - 邻接矩阵占用 O(V^2) 空间。两个辅助数组 path 和 minpath 各占用 O(V)。
  */
+
 import java.util.ArrayList;
 import java.util.Scanner;
 
-/**
- * 问题：求有向无环图中从源点到终点的最短路径。
- * 方法：使用动态规划，按顶点顺序填表记录最短距离和前驱路径。
- * 解题思路：用邻接矩阵保存边权，假设顶点编号已经符合拓扑顺序；依次计算源点到每个顶点的最短距离。
- * 对顶点 j，枚举所有可能的前驱 i，用 minpath[i] + arr[i][j] 更新 minpath[j]，同时记录 path[j] 用于回溯输出路径。
- * 时间复杂度：O(V^2)，V 为顶点数量。
- * 空间复杂度：O(V^2)，主要来自邻接矩阵。
- */
 public class DagShortestPathDp {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
@@ -25,60 +52,71 @@ public class DagShortestPathDp {
         int len = sc.nextInt();
         System.out.println("请输入边长的个数：");
         int side = sc.nextInt();
-        int arr[][]=new int[len][len];
-        for (int i = 0; i < len; i++) {     //对arr数组进行初始化
+
+        // 初始化邻接矩阵，9999 表示无穷大（无边）
+        int arr[][] = new int[len][len];
+        for (int i = 0; i < len; i++) {
             for (int j = 0; j < len; j++) {
-                arr[i][j] = 9999;       //表示为无穷大
+                arr[i][j] = 9999;
             }
         }
-            System.out.println("请依次输入两个顶点和边的权值：");
+
+        // 读入每条边的起点、终点和权值
+        System.out.println("请依次输入两个顶点和边的权值：");
         for (int k = 0; k < side; k++) {
             int i = sc.nextInt();
             int j = sc.nextInt();
             int weight = sc.nextInt();
             arr[i][j] = weight;
         }
-        System.out.println("所得最短路径和为：" + shortPath(arr,len));
+        System.out.println("所得最短路径和为：" + shortPath(arr, len));
     }
-    public static int shortPath(int[][] arr, int len){
-        ArrayList<String> list = new ArrayList<String>();		//创建一个list集合方便正序输出路径
 
-        int path[] = new int[len];          //用于存路径
-        int minpath[] = new int[len];       //用于存源点到该下标的最短距离
+    public static int shortPath(int[][] arr, int len) {
+        // list 用于正序输出路径（先反向收集，再倒序遍历）
+        ArrayList<String> list = new ArrayList<String>();
+
+        int path[] = new int[len];          // path[j] 记录到达 j 的前驱顶点编号，初始 -1 表示无前驱
+        int minpath[] = new int[len];       // minpath[j] 记录从源点 0 到顶点 j 的最短距离
         for (int i = 0; i < len; i++) {
-            minpath[i] = 9999;      //对minpath数组进行初始化
-            path[i] = -1;           //对path数组进行初始化
+            minpath[i] = 9999;              // 初始化为无穷大
+            path[i] = -1;                   // 初始化为无前驱
         }
-        minpath[0] = 0;         //将0设置为源点
-        for (int j = 1; j < len; j++) {                 //进行填表工作，这里的j代表入边，所以从1开始
-            for (int i = j-1; i >=0; i--) {             //考察所以入边，找到一个最小的路径长度，并把路径存入path
-                if (arr[i][j] + minpath[i] <minpath[j]){
+        minpath[0] = 0;                     // 源点到自身距离为 0
+
+        // 按拓扑序填表，j 代表当前计算的目标顶点（入边方向）
+        for (int j = 1; j < len; j++) {
+            // 枚举所有可能的前驱顶点 i，尝试更新最短距离
+            for (int i = j - 1; i >= 0; i--) {
+                if (arr[i][j] + minpath[i] < minpath[j]) {
                     minpath[j] = arr[i][j] + minpath[i];
-                    path[j] = i;
+                    path[j] = i;            // 记录前驱，用于回溯路径
                 }
             }
         }
-//        System.out.print("所得路径为：" + (len-1));
-        int i = len-1;
-        String k = Integer.toString(i);					//对len-1进行类型转换，然后存入list集合
+
+        // 回溯收集路径：从终点 len-1 反向追踪到源点
+        int i = len - 1;
+        String k = Integer.toString(i);
         list.add(k);
-        while (path[i]>=0){                         //对path用回溯的方法进行输出路径
-//            System.out.print("-" + path[i]);
+        while (path[i] >= 0) {
             list.add(Integer.toString(path[i]));
             i = path[i];
         }
-//        System.out.println(list);
+
+        // 倒序遍历 list 输出正序路径
         System.out.print("求得最短路径为：");
-        for(int l=list.size()-1;l>=0;l--) {					//对list集合倒序进行遍历，依次输出
+        for (int l = list.size() - 1; l >= 0; l--) {
             if (l == 0) {
                 System.out.print(list.get(l) + "]");
-            }else if(l == list.size()-1){
+            } else if (l == list.size() - 1) {
                 System.out.print("[" + list.get(l) + "-");
-            }else {
+            } else {
                 System.out.print(list.get(l) + "-");
             }
         }
         System.out.println("");
-        return minpath[len-1];
+        return minpath[len - 1];
     }
 }
+
